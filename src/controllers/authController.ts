@@ -59,7 +59,7 @@ export class AuthController {
             throw new AppError(ErrorCode.FORBIDDEN, 'Account is deleted. Please contact support.', 403);
         }
 
-        const tokens = await TokenService.generateAuthTokens(user);
+        const tokens = await TokenService.generateAuthTokens(user, device?.platform);
 
         if (device) {
             await prisma.device.deleteMany({

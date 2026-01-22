@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AnyZodObject, ZodError } from 'zod';
 import { AppError } from '../utils/AppError';
 import { ErrorCode } from '../utils/errorCodes';
+import logger from '../utils/logger';
 
 interface ValidationSchema {
     body?: AnyZodObject;
@@ -28,6 +29,7 @@ export const validate = (schema: ValidationSchema) => {
                     field: e.path.join('.'),
                     message: e.message,
                 }));
+                logger.error(`Validation Failed. Body: ${JSON.stringify(req.body)}, Errors: ${JSON.stringify(details)}`);
                 next(new AppError(ErrorCode.VALIDATION_ERROR, 'Validation failed', 400, { errors: details }));
             } else {
                 next(error);

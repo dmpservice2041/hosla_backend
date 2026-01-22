@@ -6,7 +6,8 @@ import config from './config';
 import routes from './routes';
 import { errorHandler } from './middlewares/errorHandler';
 import { apiRateLimiter } from './middlewares/rateLimiter';
-import logger from './utils/logger';
+import morgan from 'morgan';
+import logger, { stream } from './utils/logger';
 
 const app = express();
 
@@ -17,6 +18,8 @@ app.use(cors({
         : [config.app.url],
     credentials: true,
 }));
+
+app.use(morgan('combined', { stream }));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

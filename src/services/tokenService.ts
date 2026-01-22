@@ -12,7 +12,7 @@ export interface TokenPayload {
 }
 
 export class TokenService {
-    static async generateAuthTokens(user: User) {
+    static async generateAuthTokens(user: User, platform: string = 'web') {
         const accessToken = this.generateToken(
             user.id,
             user.role,
@@ -21,16 +21,22 @@ export class TokenService {
             'access'
         );
 
+        const refreshExpiresIn = ['android', 'ios'].includes(platform) ? '3650d' : '1d';
+
         const refreshToken = this.generateToken(
             user.id,
             user.role,
             config.jwt.refreshSecret,
-            config.jwt.refreshExpiresIn,
+            refreshExpiresIn,
             'refresh'
         );
 
         const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 90);
+        if (['android', 'ios'].includes(platform)) {
+            expiresAt.setFullYear(expiresAt.getFullYear() + 10);
+        } else {
+            expiresAt.setDate(expiresAt.getDate() + 1);
+        }
 
         await this.saveRefreshToken(user.id, refreshToken, expiresAt);
 
@@ -41,7 +47,7 @@ export class TokenService {
             },
             refresh: {
                 token: refreshToken,
-                expires: config.jwt.refreshExpiresIn,
+                expires: refreshExpiresIn,
             },
         };
     }
