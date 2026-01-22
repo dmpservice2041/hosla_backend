@@ -51,7 +51,7 @@ export enum ErrorCode {
 }
 
 export const ErrorMessages: Record<ErrorCode, string> = {
-    // Authentication errors
+
     [ErrorCode.UNAUTHORIZED]: 'Authentication required',
     [ErrorCode.INVALID_TOKEN]: 'Invalid authentication token',
     [ErrorCode.TOKEN_EXPIRED]: 'Authentication token has expired',
@@ -60,12 +60,10 @@ export const ErrorMessages: Record<ErrorCode, string> = {
     [ErrorCode.OTP_EXPIRED]: 'OTP has expired',
     [ErrorCode.OTP_INVALID]: 'Invalid OTP',
 
-    // Authorization errors
     [ErrorCode.FORBIDDEN]: 'Access forbidden',
     [ErrorCode.INSUFFICIENT_PERMISSIONS]: 'Insufficient permissions',
     [ErrorCode.ACCOUNT_DISABLED]: 'Account has been disabled',
 
-    // Validation errors
     [ErrorCode.VALIDATION_ERROR]: 'Validation failed',
     [ErrorCode.INVALID_PHONE]: 'Invalid phone number',
     [ErrorCode.INVALID_OTP]: 'Invalid OTP',
@@ -74,7 +72,6 @@ export const ErrorMessages: Record<ErrorCode, string> = {
     [ErrorCode.FILE_TOO_LARGE]: 'File size exceeds maximum limit',
     [ErrorCode.MISSING_REQUIRED_FIELD]: 'Required field is missing',
 
-    // Not found errors
     [ErrorCode.NOT_FOUND]: 'Resource not found',
     [ErrorCode.USER_NOT_FOUND]: 'User not found',
     [ErrorCode.RESOURCE_NOT_FOUND]: 'Resource not found',
@@ -83,19 +80,16 @@ export const ErrorMessages: Record<ErrorCode, string> = {
     [ErrorCode.COMMENT_NOT_FOUND]: 'Comment not found',
     [ErrorCode.CONVERSATION_NOT_FOUND]: 'Conversation not found',
 
-    // Conflict errors
     [ErrorCode.CONFLICT]: 'Resource conflict',
     [ErrorCode.USER_ALREADY_EXISTS]: 'User already exists',
     [ErrorCode.DUPLICATE_ENTRY]: 'Duplicate entry',
     [ErrorCode.ALREADY_JOINED]: 'Already joined',
 
-    // Rate limit errors
     [ErrorCode.RATE_LIMIT_EXCEEDED]: 'Rate limit exceeded',
     [ErrorCode.RATE_LIMITED]: 'Too many requests. Please try again later',
     [ErrorCode.TOO_MANY_REQUESTS]: 'Too many requests',
     [ErrorCode.OTP_LIMIT_EXCEEDED]: 'OTP request limit exceeded',
 
-    // Internal errors
     [ErrorCode.INTERNAL_ERROR]: 'Internal server error',
     [ErrorCode.DATABASE_ERROR]: 'Database error occurred',
     [ErrorCode.REDIS_ERROR]: 'Cache service error',
@@ -104,7 +98,6 @@ export const ErrorMessages: Record<ErrorCode, string> = {
     [ErrorCode.SMS_ERROR]: 'SMS service error',
     [ErrorCode.NOTIFICATION_ERROR]: 'Notification service error',
 
-    // Account status errors
     [ErrorCode.BLOCKED_USER]: 'User has been blocked',
     [ErrorCode.ACCOUNT_SUSPENDED]: 'Account has been suspended',
     [ErrorCode.CONTENT_REPORTED]: 'Content has been reported',

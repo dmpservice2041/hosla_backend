@@ -6,7 +6,6 @@ type AsyncHandler = (
     next: NextFunction
 ) => Promise<unknown>;
 
-
 export const asyncHandler = (fn: AsyncHandler) => {
     return (req: Request, res: Response, next: NextFunction) => {
         Promise.resolve(fn(req, res, next)).catch(next);

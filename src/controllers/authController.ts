@@ -11,6 +11,16 @@ export class AuthController {
     static requestOtp = asyncHandler(async (req: Request, res: Response) => {
         const { phone } = req.body;
 
+        const user = await prisma.user.findUnique({ where: { phone } });
+        if (!user) {
+            await prisma.user.create({
+                data: {
+                    phone,
+                    name: '',
+                },
+            });
+        }
+
         const otp = await OtpService.generateOtp(phone);
 
         res.status(200).json({
@@ -32,12 +42,16 @@ export class AuthController {
         let isNewUser = false;
 
         if (!user) {
+
             user = await prisma.user.create({
                 data: {
                     phone,
                     name: '',
                 },
             });
+            isNewUser = true;
+        } else if (!user.name) {
+
             isNewUser = true;
         }
 

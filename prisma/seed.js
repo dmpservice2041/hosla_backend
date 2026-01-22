@@ -33,4 +33,3 @@ main()
     await prisma.$disconnect();
     process.exit(1);
 });
-//# sourceMappingURL=seed.js.map

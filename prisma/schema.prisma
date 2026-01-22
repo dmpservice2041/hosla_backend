@@ -48,6 +48,7 @@ enum MessageStatusType {
 model User {
   id            String    @id @default(uuid())
   phone         String    @unique
+  email         String?   @unique
   name          String
   bio           String?
   profilePicUrl String?
