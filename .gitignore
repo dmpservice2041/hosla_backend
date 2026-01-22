@@ -1,18 +1,24 @@
 # Dependencies
 node_modules/
+jspm_packages/
 
 # Build output
 dist/
+build/Release
 
 # Environment files
 .env
 .env.local
-.env.*.local
+.env.*
+!.env.example
 
 # Logs
 logs/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
 
 # IDE
 .idea/
@@ -34,10 +40,47 @@ prisma/migrations/*
 
 # Coverage
 coverage/
+*.lcov
+.nyc_output
 
 # Temp files
 tmp/
 temp/
+pids
+*.pid
+*.seed
+*.pid.lock
 
-# Markdown documentation files (API docs, guides, etc.)
-*.md
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Build tools
+.grunt
+.cache
+.parcel-cache
+.next
+out
+.nuxt
+.svelte-kit/
+.docusaurus
+.serverless/
+.fusebox/
+.dynamodb/
+.firebase/
+
+# Misc
+.node_repl_history
+*.tgz
+.yarn-integrity
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
