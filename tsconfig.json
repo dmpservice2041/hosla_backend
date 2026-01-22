@@ -1,0 +1,61 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "commonjs",
+        "lib": [
+            "ES2022"
+        ],
+        "outDir": "./dist",
+        "rootDir": "./src",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "moduleResolution": "node",
+        "baseUrl": "./src",
+        "paths": {
+            "@/*": [
+                "./*"
+            ],
+            "@config/*": [
+                "config/*"
+            ],
+            "@controllers/*": [
+                "controllers/*"
+            ],
+            "@services/*": [
+                "services/*"
+            ],
+            "@middlewares/*": [
+                "middlewares/*"
+            ],
+            "@routes/*": [
+                "routes/*"
+            ],
+            "@utils/*": [
+                "utils/*"
+            ],
+            "@types/*": [
+                "types/*"
+            ],
+            "@validations/*": [
+                "validations/*"
+            ],
+            "@jobs/*": [
+                "jobs/*"
+            ]
+        }
+    },
+    "include": [
+        "src/**/*",
+        "prisma/seed.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist"
+    ]
+}

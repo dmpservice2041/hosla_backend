@@ -1,0 +1,339 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum Role {
+  ADMIN
+  STAFF
+  USER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum EventType {
+  IN_PERSON
+  ONLINE
+}
+
+enum ParticipantStatus {
+  GOING
+  MAYBE
+  NOT_GOING
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+  COMMUNITY
+}
+
+enum MessageStatusType {
+  SENT
+  DELIVERED
+  READ
+}
+
+// 1. User Model
+model User {
+  id            String    @id @default(uuid())
+  phone         String    @unique
+  name          String
+  bio           String?
+  profilePicUrl String?
+  dateOfBirth   DateTime?
+  gender        Gender?
+  role          Role      @default(USER)
+  isActive      Boolean   @default(true)
+  isDeleted     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  refreshTokens     RefreshToken[]
+  devices           Device[]
+  emergencyContacts EmergencyContact[]
+  posts             Post[]
+  comments          Comment[]
+  likes             Like[]
+  reports           Report[]
+  createdEvents     Event[]
+  eventParticipations EventParticipant[]
+  messageStatuses   MessageStatus[]
+  createdCommunities Community[] // Admin/Staff creator
+  communityMemberships CommunityMember[]
+  conversationMembers ConversationMember[]
+  messages          Message[]
+  blockedUsers      BlockedUser[] @relation("UserBlocked")
+  blockedBy         BlockedUser[] @relation("UserBlocker")
+  settings          UserSettings?
+}
+
+// 2. RefreshToken Model
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// 3. Device Model
+model Device {
+  id         String   @id @default(uuid())
+  userId     String
+  fcmToken   String
+  platform   String   // android, ios, web
+  model      String?
+  lastActive DateTime @default(now())
+  
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// 4. EmergencyContact Model
+model EmergencyContact {
+  id           String @id @default(uuid())
+  userId       String
+  name         String
+  phone        String
+  relationship String
+  
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// 5. Post Model
+model Post {
+  id             String    @id @default(uuid())
+  authorId       String
+  title          String?
+  body           String
+  mediaUrls      String[]
+  youtubeVideoId String?
+  isPinned       Boolean   @default(false)
+  scheduledAt    DateTime?
+  publishedAt    DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  author         User      @relation(fields: [authorId], references: [id])
+  comments       Comment[]
+  likes          Like[]
+  reports        Report[]
+}
+
+// 6. Comment Model
+model Comment {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  parentId  String?  // For nested replies
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [userId], references: [id])
+  parent    Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
+  reports   Report[]
+}
+
+// 7. Like Model
+model Like {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+}
+
+// 8. Report Model
+model Report {
+  id         String   @id @default(uuid())
+  reporterId String
+  postId     String?
+  commentId  String?
+  reason     String
+  status     String   @default("PENDING") // PENDING, RESOLVED, DISMISSED
+  createdAt  DateTime @default(now())
+  
+  reporter   User     @relation(fields: [reporterId], references: [id])
+  post       Post?    @relation(fields: [postId], references: [id])
+  comment    Comment? @relation(fields: [commentId], references: [id])
+}
+
+// 9. Event Model
+model Event {
+  id          String   @id @default(uuid())
+  creatorId   String
+  title       String
+  description String
+  location    String?
+  meetingLink String?
+  eventType   EventType
+  startsAt    DateTime
+  endsAt      DateTime
+  maxCapacity Int?
+  isCancelled Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  creator     User     @relation(fields: [creatorId], references: [id])
+  participants EventParticipant[]
+  reminders   EventReminder[]
+}
+
+// 10. EventParticipant Model
+model EventParticipant {
+  id        String            @id @default(uuid())
+  eventId   String
+  userId    String
+  status    ParticipantStatus @default(GOING)
+  joinedAt  DateTime          @default(now())
+  
+  event     Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+// 11. EventReminder Model
+model EventReminder {
+  id        String   @id @default(uuid())
+  eventId   String
+  remindAt  DateTime
+  isSent    Boolean  @default(false)
+  
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+// 12. Conversation Model
+model Conversation {
+  id        String           @id @default(uuid())
+  type      ConversationType
+  name      String?          // For group/community chats
+  photoUrl  String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt // For sorting by last message
+  
+  members   ConversationMember[]
+  messages  Message[]
+}
+
+// 13. ConversationMember Model
+model ConversationMember {
+  id             String       @id @default(uuid())
+  conversationId String
+  userId         String
+  isAdmin        Boolean      @default(false)
+  joinedAt       DateTime     @default(now())
+  
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+}
+
+// 14. Message Model
+model Message {
+  id                  String   @id @default(uuid())
+  conversationId      String
+  senderId            String
+  content             String?
+  mediaUrl            String?
+  voiceUrl            String?
+  replyToId           String?
+  isDeleted           Boolean  @default(false)
+  deletedForEveryone  Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  
+  conversation        Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender              User         @relation(fields: [senderId], references: [id])
+  replyTo             Message?     @relation("ReplyMessage", fields: [replyToId], references: [id])
+  replies             Message[]    @relation("ReplyMessage")
+  statuses            MessageStatus[]
+}
+
+// 15. MessageStatus Model
+model MessageStatus {
+  id        String            @id @default(uuid())
+  messageId String
+  userId    String
+  status    MessageStatusType
+  updatedAt DateTime          @updatedAt
+  
+  message   Message           @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade) // Recipient
+
+  @@unique([messageId, userId])
+}
+
+// 16. Community Model
+model Community {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  creatorId   String?  // Admin/Staff who created it
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  creator     User?     @relation(fields: [creatorId], references: [id])
+  members     CommunityMember[]
+}
+
+// 17. CommunityMember Model
+model CommunityMember {
+  id          String   @id @default(uuid())
+  communityId String
+  userId      String
+  role        Role     @default(USER) // Admin maps to Manager here
+  joinedAt    DateTime @default(now())
+  
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, userId])
+}
+
+// 18. UserSettings Model
+model UserSettings {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  language            String   @default("en")
+  fontSize            String   @default("medium") // small, medium, large, extralarge
+  darkMode            Boolean  @default(false)
+  notifyEvents        Boolean  @default(true)
+  notifyChat          Boolean  @default(true)
+  notifyAnnouncements Boolean  @default(true)
+  
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// 19. BlockedUser Model
+model BlockedUser {
+  id        String   @id @default(uuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  
+  blocker   User     @relation("UserBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("UserBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+}
