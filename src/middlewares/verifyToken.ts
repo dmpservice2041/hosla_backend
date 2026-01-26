@@ -4,10 +4,14 @@ import { AppError } from '../utils/AppError';
 import { ErrorCode } from '../utils/errorCodes';
 import prisma from '../config/database';
 import { User } from '@prisma/client';
+import { Platform } from '../types/platformTypes';
 
 declare module 'express-serve-static-core' {
     interface Request {
         user?: User;
+        context?: {
+            platform: Platform;
+        };
     }
 }
 

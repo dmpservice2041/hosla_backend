@@ -6,6 +6,8 @@ import { TokenService } from '../services/tokenService';
 import prisma from '../config/database';
 import { asyncHandler } from '../middlewares/asyncHandler';
 import config from '../config';
+import { Platform, normalizePlatform } from '../types/platformTypes';
+import logger from '../utils/logger';
 
 export class AuthController {
     static requestOtp = asyncHandler(async (req: Request, res: Response) => {
@@ -22,6 +24,13 @@ export class AuthController {
         }
 
         const otp = await OtpService.generateOtp(phone);
+
+        const platform = req.context?.platform || Platform.WEB;
+        logger.info('OTP requested', {
+            phone,
+            platform,
+            headerUsed: !!req.context?.platform,
+        });
 
         res.status(200).json({
             success: true,
@@ -59,7 +68,14 @@ export class AuthController {
             throw new AppError(ErrorCode.FORBIDDEN, 'Account is deleted. Please contact support.', 403);
         }
 
-        const tokens = await TokenService.generateAuthTokens(user, device?.platform);
+        const platform = req.context?.platform || Platform.WEB;
+        const tokens = await TokenService.generateAuthTokens(user, platform);
+
+        logger.info('User authenticated', {
+            userId: user.id,
+            platform,
+            isNewUser,
+        });
 
         if (device) {
             await prisma.device.deleteMany({
@@ -92,8 +108,17 @@ export class AuthController {
         const refreshTokenDoc = await TokenService.verifyRefreshToken(refreshToken);
         const user = refreshTokenDoc.user;
 
+        const platform = refreshTokenDoc.platform
+            ? normalizePlatform(refreshTokenDoc.platform)
+            : Platform.WEB;
+
+        logger.info('Refreshing tokens', {
+            userId: user.id,
+            platform,
+        });
+
         await TokenService.revokeRefreshToken(refreshToken);
-        const tokens = await TokenService.generateAuthTokens(user);
+        const tokens = await TokenService.generateAuthTokens(user, platform);
 
         res.status(200).json({
             success: true,
@@ -105,8 +130,14 @@ export class AuthController {
 
     static logout = asyncHandler(async (req: Request, res: Response) => {
         const { refreshToken } = req.body;
+        const platform = req.context?.platform || Platform.WEB;
+
         if (refreshToken) {
             await TokenService.revokeRefreshToken(refreshToken);
+            logger.info('User logged out', {
+                platform,
+                refreshTokenProvided: true,
+            });
         }
 
         res.status(200).json({

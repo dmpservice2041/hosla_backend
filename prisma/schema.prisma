@@ -11,7 +11,34 @@ datasource db {
 enum Role {
   ADMIN
   STAFF
+  MEMBER
   USER
+}
+
+enum PostStatus {
+  PUBLISHED
+  PENDING_REVIEW
+  HIDDEN
+  DELETED
+}
+
+enum ReportReason {
+  ABUSE
+  SPAM
+  FAKE
+  OFFENSIVE
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
+enum FilterSeverity {
+  HIGH
+  MEDIUM
+  LOW
 }
 
 enum Gender {
@@ -85,10 +112,13 @@ model RefreshToken {
   id        String   @id @default(uuid())
   token     String   @unique
   userId    String
+  platform  String?
   expiresAt DateTime
   createdAt DateTime @default(now())
   
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([platform])
 }
 
 // 3. Device Model
@@ -122,7 +152,11 @@ model Post {
   body           String
   mediaUrls      String[]
   youtubeVideoId String?
-  isPinned       Boolean   @default(false)
+  tags           String[]
+  tagPriority    Int      @default(10)
+  rolePriority   Int      @default(10)
+  status         PostStatus @default(PUBLISHED)
+  isPinned       Boolean    @default(false)
   scheduledAt    DateTime?
   publishedAt    DateTime  @default(now())
   createdAt      DateTime  @default(now())
@@ -170,9 +204,9 @@ model Report {
   reporterId String
   postId     String?
   commentId  String?
-  reason     String
-  status     String   @default("PENDING") // PENDING, RESOLVED, DISMISSED
-  createdAt  DateTime @default(now())
+  reason     ReportReason
+  status     ReportStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
   
   reporter   User     @relation(fields: [reporterId], references: [id])
   post       Post?    @relation(fields: [postId], references: [id])
@@ -337,4 +371,14 @@ model BlockedUser {
   blocked   User     @relation("UserBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
 
   @@unique([blockerId, blockedId])
+}
+
+// 20. BlockedWord Model
+model BlockedWord {
+  id        String         @id @default(uuid())
+  word      String         @unique
+  severity  FilterSeverity @default(MEDIUM)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  createdBy String?
 }

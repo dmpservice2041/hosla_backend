@@ -13,7 +13,7 @@ export const verifyOtpSchema = {
         otp: z.string().length(6, 'OTP must be 6 digits'),
         device: z.object({
             fcmToken: z.string(),
-            platform: z.enum(['android', 'ios', 'web']),
+            platform: z.enum(['ANDROID', 'IOS', 'WEB', 'android', 'ios', 'web']),
             model: z.string().optional(),
         }).optional(),
     }),

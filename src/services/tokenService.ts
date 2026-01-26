@@ -4,6 +4,8 @@ import config from '../config';
 import prisma from '../config/database';
 import { AppError } from '../utils/AppError';
 import { ErrorCode } from '../utils/errorCodes';
+import { Platform, isMobilePlatform } from '../types/platformTypes';
+import logger from '../utils/logger';
 
 export interface TokenPayload {
     sub: string;
@@ -12,7 +14,7 @@ export interface TokenPayload {
 }
 
 export class TokenService {
-    static async generateAuthTokens(user: User, platform: string = 'web') {
+    static async generateAuthTokens(user: User, platform: Platform) {
         const accessToken = this.generateToken(
             user.id,
             user.role,
@@ -21,7 +23,7 @@ export class TokenService {
             'access'
         );
 
-        const refreshExpiresIn = ['android', 'ios'].includes(platform) ? '3650d' : '1d';
+        const refreshExpiresIn = isMobilePlatform(platform) ? '3650d' : '1d';
 
         const refreshToken = this.generateToken(
             user.id,
@@ -32,13 +34,19 @@ export class TokenService {
         );
 
         const expiresAt = new Date();
-        if (['android', 'ios'].includes(platform)) {
+        if (isMobilePlatform(platform)) {
             expiresAt.setFullYear(expiresAt.getFullYear() + 10);
         } else {
             expiresAt.setDate(expiresAt.getDate() + 1);
         }
 
-        await this.saveRefreshToken(user.id, refreshToken, expiresAt);
+        await this.saveRefreshToken(user.id, refreshToken, platform, expiresAt);
+
+        logger.info('Auth tokens generated', {
+            userId: user.id,
+            platform,
+            refreshExpiresIn,
+        });
 
         return {
             access: {
@@ -70,12 +78,14 @@ export class TokenService {
     private static async saveRefreshToken(
         userId: string,
         token: string,
+        platform: Platform,
         expiresAt: Date
     ) {
         await prisma.refreshToken.create({
             data: {
                 token,
                 userId,
+                platform,
                 expiresAt,
             },
         });
@@ -106,6 +116,11 @@ export class TokenService {
                 throw new Error('Token not found');
             }
 
+            logger.info('Refresh token verified', {
+                userId: refreshTokenDoc.userId,
+                platform: refreshTokenDoc.platform,
+            });
+
             return refreshTokenDoc;
         } catch (error) {
             throw new AppError(ErrorCode.UNAUTHORIZED, 'Invalid refresh token');
@@ -120,3 +135,4 @@ export class TokenService {
 }
 
 type RefreshTokenDoc = any;
+

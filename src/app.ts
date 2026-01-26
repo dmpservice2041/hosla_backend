@@ -6,6 +6,7 @@ import config from './config';
 import routes from './routes';
 import { errorHandler } from './middlewares/errorHandler';
 import { apiRateLimiter } from './middlewares/rateLimiter';
+import { platformMiddleware } from './middlewares/platformMiddleware';
 import morgan from 'morgan';
 import logger, { stream } from './utils/logger';
 
@@ -25,6 +26,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use(compression());
+
+app.use('/api', platformMiddleware);
 
 app.use('/api', apiRateLimiter);
 

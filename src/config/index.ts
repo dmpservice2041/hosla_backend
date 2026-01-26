@@ -57,6 +57,9 @@ interface Config {
         useFixedOtp: boolean;
         fixedOtpValue: string;
     };
+    platform: {
+        strictMode: boolean;
+    };
 }
 
 const getEnvVar = (key: string, defaultValue?: string): string => {
@@ -130,6 +133,10 @@ const config: Config = {
     otp: {
         useFixedOtp: getEnvVar('USE_FIXED_OTP', 'false') === 'true',
         fixedOtpValue: getEnvVar('FIXED_OTP_VALUE', '123456'),
+    },
+
+    platform: {
+        strictMode: getEnvVar('PLATFORM_STRICT_MODE', 'false') === 'true',
     },
 };
 
