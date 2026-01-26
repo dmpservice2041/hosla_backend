@@ -1,6 +1,8 @@
 import express from 'express';
 import { PostController } from '../controllers/postController';
-import { verifyToken } from '../middlewares/verifyToken';
+import { LikeController } from '../controllers/likeController';
+import { CommentController } from '../controllers/commentController';
+import { verifyToken, verifyTokenOptional } from '../middlewares/verifyToken';
 import { validate } from '../middlewares/validate';
 import { createPostSchema, updatePostSchema } from '../validations/postValidation';
 import { requireRole } from '../middlewares/requireRole';
@@ -8,13 +10,22 @@ import { Role } from '@prisma/client';
 
 const router = express.Router();
 
+
+router.get('/feed', verifyTokenOptional, PostController.getFeed);
+router.get('/:postId/comments', verifyTokenOptional, CommentController.getCommentsByPost);
+
+
 router.use(verifyToken);
 
 router.post('/', validate(createPostSchema), PostController.createPost);
-router.get('/feed', PostController.getFeed);
 router.put('/:id', validate(updatePostSchema), PostController.updatePost);
 router.put('/:id', validate(updatePostSchema), PostController.updatePost);
 router.delete('/:id', PostController.deletePost);
+router.post('/:id/like', LikeController.likePost);
+router.delete('/:id/like', LikeController.unlikePost);
+
+router.post('/:postId/comments', CommentController.createComment);
+
 
 
 router.patch('/:id/hide', requireRole([Role.ADMIN]), PostController.adminHidePost);

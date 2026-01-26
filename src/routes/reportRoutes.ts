@@ -10,12 +10,9 @@ const router = express.Router();
 
 router.use(verifyToken);
 
-
 router.post('/', requireRole([Role.USER]), validate(createReportSchema), ReportController.createReport);
 
-
 router.get('/', requireRole([Role.ADMIN, Role.STAFF]), ReportController.getReports);
-
 
 router.patch('/:id/dismiss', requireRole([Role.ADMIN]), ReportController.dismissReport);
 

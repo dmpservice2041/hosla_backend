@@ -17,7 +17,6 @@ export class ReportController {
             throw new AppError(ErrorCode.VALIDATION_ERROR, 'Either postId or commentId is required');
         }
 
-        // Prevent Self-Reporting
         if (postId) {
             const post = await prisma.post.findUnique({
                 where: { id: postId },
@@ -29,7 +28,6 @@ export class ReportController {
             }
         }
 
-        // Check for duplicate report
         const existingReport = await prisma.report.findFirst({
             where: {
                 reporterId: userId,
@@ -58,7 +56,6 @@ export class ReportController {
             target: postId ? `Post:${postId}` : `Comment:${commentId}`,
         });
 
-        // Auto-Hide Logic for Posts
         if (postId) {
             const reportCount = await prisma.report.count({
                 where: { postId },
@@ -84,7 +81,7 @@ export class ReportController {
     });
 
     static getReports = asyncHandler(async (req: Request, res: Response) => {
-        // Admin only - assumed protected by route middleware
+
         const page = parseInt(req.query.page as string) || 1;
         const limit = parseInt(req.query.limit as string) || 20;
         const skip = (page - 1) * limit;
@@ -125,7 +122,7 @@ export class ReportController {
 
         await prisma.report.update({
             where: { id },
-            data: { status: ReportStatus.DISMISSED }, // Assuming ReportStatus.DISMISSED exists based on audit
+            data: { status: ReportStatus.DISMISSED }, 
         });
 
         res.status(200).json({

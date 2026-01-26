@@ -2,6 +2,7 @@ import { Router } from 'express';
 import authRoutes from './authRoutes';
 import userRoutes from './userRoutes';
 import postRoutes from './postRoutes';
+import commentRoutes from './commentRoutes';
 import reportRoutes from './reportRoutes';
 import analyticsRoutes from './analyticsRoutes';
 
@@ -20,6 +21,7 @@ router.get('/health', (_req, res) => {
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/posts', postRoutes);
+router.use('/comments', commentRoutes);
 router.use('/reports', reportRoutes);
 router.use('/analytics', analyticsRoutes);
 
