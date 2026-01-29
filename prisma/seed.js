@@ -9,7 +9,7 @@ async function main() {
         where: { phone: adminPhone },
     });
     if (existingAdmin) {
-        console.log('✅ Default admin already exists:', existingAdmin.phone);
+        console.log('Default admin already exists:', existingAdmin.phone);
         return;
     }
     const admin = await prisma.user.create({
@@ -19,17 +19,17 @@ async function main() {
             role: 'ADMIN',
         },
     });
-    console.log('✅ Default admin created successfully:');
+    console.log('Default admin created successfully:');
     console.log(`   Phone: ${admin.phone}`);
     console.log(`   Name: ${admin.name}`);
     console.log(`   Role: ${admin.role}`);
 }
 main()
     .then(async () => {
-    await prisma.$disconnect();
-})
+        await prisma.$disconnect();
+    })
     .catch(async (e) => {
-    console.error('❌ Error seeding database:', e);
-    await prisma.$disconnect();
-    process.exit(1);
-});
+        console.error('Error seeding database:', e);
+        await prisma.$disconnect();
+        process.exit(1);
+    });

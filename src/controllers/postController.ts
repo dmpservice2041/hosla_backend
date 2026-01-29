@@ -7,6 +7,7 @@ import { Role, PostStatus } from '@prisma/client';
 import logger from '../utils/logger';
 import { TextFilterService } from '../services/textFilterService';
 import { getTagPriority, ROLE_PRIORITIES } from '../config/feedConfig';
+import { formatDate } from '../utils/dateUtils';
 
 interface Cursor {
     isPinned: boolean;
@@ -29,15 +30,47 @@ const decodeCursor = (cursorStr: string): Cursor | null => {
 };
 
 export class PostController {
+    private static formatPostResponse(post: any, viewerId?: string, viewerRole?: Role, likedPostIds?: Set<string>) {
+        const isAuthor = viewerId === post.authorId;
+        const isAdmin = viewerRole === Role.ADMIN;
+        const isUser = viewerRole === Role.USER;
+
+        return {
+            id: post.id,
+            title: post.title,
+            body: post.body,
+            mediaUrls: post.mediaUrls,
+            youtubeVideoId: post.youtubeVideoId,
+            tags: post.tags,
+            isPinned: post.isPinned,
+            createdAt: formatDate(post.createdAt),
+
+
+            authorId: post.author.id,
+            authorName: post.author.name,
+            authorProfilePicUrl: post.author.profilePicUrl,
+
+
+            isLikedByMe: likedPostIds ? likedPostIds.has(post.id) : false,
+            likeCount: post._count.likes,
+            commentCount: post._count.comments,
+
+
+            canEdit: isAuthor,
+            canDelete: isAuthor || isAdmin,
+            canReport: !!viewerId && !isAuthor && isUser,
+        };
+    }
+
     static createPost = asyncHandler(async (req: Request, res: Response) => {
-        const { title, body, mediaUrls, isPinned, tags } = req.body;
+        const { title, body, mediaUrls, youtubeVideoId, isPinned, tags } = req.body;
         const user = req.user!;
 
         if (isPinned && user.role !== Role.ADMIN && user.role !== Role.STAFF) {
             throw new AppError(ErrorCode.FORBIDDEN, 'Only Admin/Staff can pin posts');
         }
 
-        const filterResult = await TextFilterService.checkContent(title + ' ' + body);
+        const filterResult = await TextFilterService.checkContent((title || '') + ' ' + body);
 
         if (!filterResult.isAllowed) {
             throw new AppError(ErrorCode.VALIDATION_ERROR, filterResult.description || 'Content violations found');
@@ -45,7 +78,9 @@ export class PostController {
 
         let status = filterResult.status;
 
-        const tagPriority = getTagPriority(tags);
+
+        const finalTags = (!tags || tags.length === 0) ? ['DEFAULT'] : tags;
+        const tagPriority = getTagPriority(finalTags);
         const rolePriority = ROLE_PRIORITIES[user.role] || 10;
 
         const post = await prisma.post.create({
@@ -54,11 +89,27 @@ export class PostController {
                 title,
                 body,
                 mediaUrls: mediaUrls || [],
+                youtubeVideoId,
                 isPinned: isPinned || false,
                 status,
-                tags: tags || [],
+                tags: finalTags,
                 tagPriority,
                 rolePriority,
+            },
+            include: {
+                author: {
+                    select: {
+                        id: true,
+                        name: true,
+                        profilePicUrl: true,
+                    },
+                },
+                _count: {
+                    select: {
+                        likes: true,
+                        comments: true,
+                    },
+                },
             },
         });
 
@@ -68,9 +119,16 @@ export class PostController {
             status,
         });
 
+        const flattenedPost = PostController.formatPostResponse(
+            post,
+            user.id,
+            user.role,
+            undefined
+        );
+
         res.status(201).json({
             success: true,
-            data: { post },
+            data: { post: flattenedPost },
         });
     });
 
@@ -109,8 +167,6 @@ export class PostController {
             };
 
             Object.assign(where, cursorWhere);
-        } else if (page) {
-
         }
 
         const rawPosts = await prisma.post.findMany({
@@ -159,7 +215,6 @@ export class PostController {
             }
         }
 
-
         const viewerId = req.user?.id;
         const viewerRole = req.user?.role;
         const likedPostIds = new Set<string>();
@@ -175,16 +230,12 @@ export class PostController {
             likes.forEach(l => likedPostIds.add(l.postId));
         }
 
-        const posts = rawPosts.map(post => ({
-            ...post,
-            isLikedByMe: likedPostIds.has(post.id),
-            likeCount: post._count.likes,
-            commentCount: post._count.comments,
-            canEdit: viewerId === post.authorId,
-            canDelete: viewerId === post.authorId || viewerRole === Role.ADMIN,
-            canReport: !!viewerId && viewerId !== post.authorId && viewerRole === Role.USER,
-            _count: undefined
-        }));
+        const posts = rawPosts.map(post => PostController.formatPostResponse(
+            post,
+            viewerId,
+            viewerRole,
+            likedPostIds
+        ));
 
         res.status(200).json({
             success: true,
@@ -225,7 +276,7 @@ export class PostController {
 
     static updatePost = asyncHandler(async (req: Request, res: Response) => {
         const { id } = req.params;
-        const { title, body, mediaUrls, isPinned, tags } = req.body;
+        const { title, body, mediaUrls, youtubeVideoId, isPinned, tags } = req.body;
         const user = req.user!;
 
         const post = await prisma.post.findUnique({ where: { id } });
@@ -248,6 +299,7 @@ export class PostController {
 
         let newStatus: PostStatus | undefined;
 
+
         if (title || body) {
             const checkText = (title || post.title || '') + ' ' + (body || post.body || '');
             const filterResult = await TextFilterService.checkContent(checkText);
@@ -256,14 +308,20 @@ export class PostController {
                 throw new AppError(ErrorCode.VALIDATION_ERROR, filterResult.description || 'Content violations found');
             }
 
-            if (filterResult.status !== PostStatus.PUBLISHED) {
+
+            if (filterResult.status === PostStatus.PUBLISHED) {
+                newStatus = PostStatus.PUBLISHED;
+            } else {
                 newStatus = filterResult.status;
             }
         }
 
         let tagPriority = undefined;
-        if (tags) {
-            tagPriority = getTagPriority(tags);
+        let finalTags = undefined;
+
+        if (tags !== undefined) {
+            finalTags = (tags.length === 0) ? ['DEFAULT'] : tags;
+            tagPriority = getTagPriority(finalTags);
         }
 
         const updatedPost = await prisma.post.update({
@@ -272,16 +330,48 @@ export class PostController {
                 title,
                 body,
                 mediaUrls,
-                tags,
+                youtubeVideoId,
+                ...(finalTags !== undefined && { tags: finalTags }),
                 ...(tagPriority !== undefined && { tagPriority }),
                 ...(isPinned !== undefined && { isPinned }),
                 ...(newStatus && { status: newStatus }),
             },
+            include: {
+                author: {
+                    select: {
+                        id: true,
+                        name: true,
+                        profilePicUrl: true,
+                    },
+                },
+                _count: {
+                    select: {
+                        likes: true,
+                        comments: true,
+                    },
+                },
+            },
         });
+
+        const like = await prisma.like.findUnique({
+            where: {
+                postId_userId: {
+                    postId: id,
+                    userId: user.id,
+                },
+            },
+        });
+
+        const flattenedPost = PostController.formatPostResponse(
+            updatedPost,
+            user.id,
+            user.role,
+            like ? new Set([like.postId]) : undefined
+        );
 
         res.status(200).json({
             success: true,
-            data: { post: updatedPost },
+            data: { post: flattenedPost },
         });
     });
 

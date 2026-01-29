@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { notificationService } from '../services/notificationService';
 import { asyncHandler } from '../middlewares/asyncHandler';
 import prisma from '../config/database';
 import { AppError } from '../utils/AppError';
@@ -20,7 +21,7 @@ export class CommentController {
 
         const post = await prisma.post.findUnique({
             where: { id: postId },
-            select: { status: true }
+            select: { status: true, authorId: true, title: true, body: true }
         });
 
         if (!post) {
@@ -47,7 +48,7 @@ export class CommentController {
             }
         }
 
-        // 3. Create Comment
+
         const comment = await prisma.comment.create({
             data: {
                 content,
@@ -66,6 +67,41 @@ export class CommentController {
             }
         });
 
+        const userName = req.user!.name;
+
+
+        if (post && post.authorId !== userId) {
+            const authorDevices = await prisma.device.findMany({ where: { userId: post.authorId } });
+            if (authorDevices.length) {
+                const tokens = authorDevices.map(d => d.fcmToken);
+                const postTitle = post.title || post.body.substring(0, 50);
+                await notificationService.sendMulticast(
+                    tokens,
+                    'New Comment',
+                    `${userName} commented on your post: "${postTitle}"`,
+                    { type: 'COMMENT', postId: postId, commentId: comment.id, click_action: 'FLUTTER_NOTIFICATION_CLICK' }
+                );
+            }
+        }
+
+
+        if (parentId) {
+            const parentComment = await prisma.comment.findUnique({ where: { id: parentId }, select: { userId: true } });
+
+            if (parentComment && parentComment.userId !== userId && parentComment.userId !== post.authorId) {
+                const parentDevices = await prisma.device.findMany({ where: { userId: parentComment.userId } });
+                if (parentDevices.length) {
+                    const tokens = parentDevices.map(d => d.fcmToken);
+                    await notificationService.sendMulticast(
+                        tokens,
+                        'New Reply',
+                        `${userName} replied to your comment`,
+                        { type: 'REPLY', postId: postId, commentId: comment.id, click_action: 'FLUTTER_NOTIFICATION_CLICK' }
+                    );
+                }
+            }
+        }
+
         res.status(201).json({
             success: true,
             data: { comment }
@@ -76,17 +112,32 @@ export class CommentController {
     static getCommentsByPost = asyncHandler(async (req: Request, res: Response) => {
         const { postId } = req.params;
         const limit = parseInt(req.query.limit as string) || 50;
-        const page = parseInt(req.query.page as string) || 1;
-        const skip = (page - 1) * limit;
+        const cursorStr = req.query.cursor as string;
+
+        const where: any = {
+            postId,
+            isDeleted: false
+        };
+
+        if (cursorStr) {
+            try {
+                const cursor = JSON.parse(Buffer.from(cursorStr, 'base64').toString('ascii'));
+                where.OR = [
+                    { createdAt: { gt: new Date(cursor.createdAt) } },
+                    { createdAt: new Date(cursor.createdAt), id: { gt: cursor.id } }
+                ];
+            } catch {
+                throw new AppError(ErrorCode.VALIDATION_ERROR, 'Invalid cursor');
+            }
+        }
 
         const comments = await prisma.comment.findMany({
-            where: {
-                postId,
-                isDeleted: false
-            },
-            take: limit,
-            skip,
-            orderBy: { createdAt: 'asc' },
+            where,
+            take: limit + 1,
+            orderBy: [
+                { createdAt: 'asc' },
+                { id: 'asc' }
+            ],
             include: {
                 author: {
                     select: {
@@ -98,9 +149,23 @@ export class CommentController {
             }
         });
 
+        let nextCursor: string | null = null;
+        if (comments.length > limit) {
+            const nextItem = comments.pop();
+            if (nextItem) {
+                nextCursor = Buffer.from(JSON.stringify({
+                    createdAt: nextItem.createdAt.toISOString(),
+                    id: nextItem.id
+                })).toString('base64');
+            }
+        }
+
         res.status(200).json({
             success: true,
-            data: { comments }
+            data: {
+                comments,
+                nextCursor
+            }
         });
     });
 

@@ -52,6 +52,7 @@ interface Config {
     app: {
         name: string;
         url: string;
+        serverTimeout: number;
     };
     otp: {
         useFixedOtp: boolean;
@@ -128,6 +129,7 @@ const config: Config = {
     app: {
         name: getEnvVar('APP_NAME', 'Hosla'),
         url: getEnvVar('APP_URL', 'https://hosla.in'),
+        serverTimeout: parseInt(getEnvVar('SERVER_TIMEOUT', '30000'), 10),
     },
 
     otp: {

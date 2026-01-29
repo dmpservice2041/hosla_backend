@@ -11,7 +11,7 @@ async function main() {
     });
 
     if (existingAdmin) {
-        console.log('✅ Default admin already exists:', existingAdmin.phone);
+        console.log('Default admin already exists:', existingAdmin.phone);
         return;
     }
 
@@ -23,7 +23,7 @@ async function main() {
         },
     });
 
-    console.log('✅ Default admin created successfully:');
+    console.log('Default admin created successfully:');
     console.log(`   Phone: ${admin.phone}`);
     console.log(`   Name: ${admin.name}`);
     console.log(`   Role: ${admin.role}`);
@@ -34,7 +34,7 @@ main()
         await prisma.$disconnect();
     })
     .catch(async (e) => {
-        console.error('❌ Error seeding database:', e);
+        console.error('Error seeding database:', e);
         await prisma.$disconnect();
         process.exit(1);
     });

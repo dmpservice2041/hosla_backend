@@ -159,6 +159,9 @@ model Post {
   comments       Comment[]
   likes          Like[]
   reports        Report[]
+
+  @@index([isPinned, tagPriority, rolePriority, publishedAt, id])
+  @@index([authorId])
 }
 
 model Comment {
@@ -176,6 +179,9 @@ model Comment {
   replies   Comment[] @relation("CommentReplies")
   reports   Report[]
   isDeleted Boolean   @default(false)
+
+  @@index([postId])
+  @@index([userId])
 }
 
 model Like {

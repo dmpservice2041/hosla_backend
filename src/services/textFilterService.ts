@@ -9,10 +9,23 @@ interface FilterResult {
 }
 
 export class TextFilterService {
+    private static blockedWordsCache: any[] | null = null;
+    private static lastCacheFetch: number = 0;
+    private static CACHE_TTL = 5 * 60 * 1000;
+
+    private static async getBlockedWords() {
+        const now = Date.now();
+        if (!this.blockedWordsCache || (now - this.lastCacheFetch) > this.CACHE_TTL) {
+            this.blockedWordsCache = await prisma.blockedWord.findMany();
+            this.lastCacheFetch = now;
+        }
+        return this.blockedWordsCache;
+    }
+
     static async checkContent(text: string): Promise<FilterResult> {
         if (!text) return { isAllowed: true, status: PostStatus.PUBLISHED };
 
-        const blockedWords = await prisma.blockedWord.findMany(); 
+        const blockedWords = await this.getBlockedWords();
         const content = text.toLowerCase();
 
         for (const block of blockedWords) {
@@ -22,7 +35,7 @@ export class TextFilterService {
                 if (block.severity === FilterSeverity.HIGH) {
                     return {
                         isAllowed: false,
-                        status: PostStatus.DELETED, 
+                        status: PostStatus.DELETED,
                         matchedWord: block.word,
                         description: 'Content contains prohibited words'
                     };

@@ -2,7 +2,7 @@ import redis from '../config/redis';
 import config from '../config';
 import logger from '../utils/logger';
 import queue from '../jobs/queue';
-import { JobType } from '../jobs/worker';
+import { JobType } from '../config/queue';
 
 export class OtpService {
     private static readonly OTP_TTL = 300;
@@ -25,7 +25,7 @@ export class OtpService {
             return otp;
         }
 
-        await queue.add(JobType.SEND_SMS, {
+        await queue.add(JobType.SEND_OTP, {
             phone,
             message: `Your Hosla verification code is ${otp}. Valid for 5 minutes.`,
         });

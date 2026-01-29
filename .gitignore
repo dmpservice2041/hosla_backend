@@ -84,3 +84,6 @@ out
 !.yarn/versions
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Security
+src/config/serviceAccountKey.json

@@ -5,6 +5,7 @@ import postRoutes from './postRoutes';
 import commentRoutes from './commentRoutes';
 import reportRoutes from './reportRoutes';
 import analyticsRoutes from './analyticsRoutes';
+import deviceRoutes from './deviceRoutes';
 
 const router = Router();
 
@@ -24,5 +25,6 @@ router.use('/posts', postRoutes);
 router.use('/comments', commentRoutes);
 router.use('/reports', reportRoutes);
 router.use('/analytics', analyticsRoutes);
+router.use('/devices', deviceRoutes);
 
 export default router;

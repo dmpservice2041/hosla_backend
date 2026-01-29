@@ -19,7 +19,7 @@ router.use(verifyToken);
 
 router.post('/', validate(createPostSchema), PostController.createPost);
 router.put('/:id', validate(updatePostSchema), PostController.updatePost);
-router.put('/:id', validate(updatePostSchema), PostController.updatePost);
+
 router.delete('/:id', PostController.deletePost);
 router.post('/:id/like', LikeController.likePost);
 router.delete('/:id/like', LikeController.unlikePost);

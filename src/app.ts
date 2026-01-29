@@ -9,6 +9,8 @@ import { apiRateLimiter } from './middlewares/rateLimiter';
 import { platformMiddleware } from './middlewares/platformMiddleware';
 import morgan from 'morgan';
 import logger, { stream } from './utils/logger';
+import './config/firebase';
+import './jobs/worker';
 
 const app = express();
 
@@ -49,9 +51,12 @@ app.use(errorHandler);
 
 const startServer = async () => {
     try {
-        app.listen(config.port, () => {
+        const server = app.listen(config.port, () => {
             logger.info(`Server running on port ${config.port} in ${config.env} mode`);
         });
+
+        server.timeout = config.app.serverTimeout;
+        logger.info(`Server timeout set to ${config.app.serverTimeout}ms`);
     } catch (error) {
         logger.error('Failed to start server:', error);
         process.exit(1);
