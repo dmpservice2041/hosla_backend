@@ -1,6 +1,6 @@
 import express from 'express';
 import { ReportController } from '../controllers/reportController';
-import { verifyToken } from '../middlewares/verifyToken';
+import { verifyToken, requireCompleteProfile } from '../middlewares/verifyToken';
 import { validate } from '../middlewares/validate';
 import { createReportSchema } from '../validations/reportValidation';
 import { requireRole } from '../middlewares/requireRole';
@@ -9,6 +9,7 @@ import { Role } from '@prisma/client';
 const router = express.Router();
 
 router.use(verifyToken);
+router.use(requireCompleteProfile);
 
 router.post('/', requireRole([Role.USER]), validate(createReportSchema), ReportController.createReport);
 

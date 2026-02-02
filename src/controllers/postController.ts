@@ -30,7 +30,7 @@ const decodeCursor = (cursorStr: string): Cursor | null => {
 };
 
 export class PostController {
-    private static formatPostResponse(post: any, viewerId?: string, viewerRole?: Role, likedPostIds?: Set<string>) {
+    private static formatPostResponse(post: any, viewerId?: string, viewerRole?: Role, likedPostIds?: Set<string>, savedPostIds?: Set<string>) {
         const isAuthor = viewerId === post.authorId;
         const isAdmin = viewerRole === Role.ADMIN;
         const isUser = viewerRole === Role.USER;
@@ -52,6 +52,7 @@ export class PostController {
 
 
             isLikedByMe: likedPostIds ? likedPostIds.has(post.id) : false,
+            isSavedByMe: savedPostIds ? savedPostIds.has(post.id) : false,
             likeCount: post._count.likes,
             commentCount: post._count.comments,
 
@@ -123,6 +124,7 @@ export class PostController {
             post,
             user.id,
             user.role,
+            undefined,
             undefined
         );
 
@@ -218,6 +220,7 @@ export class PostController {
         const viewerId = req.user?.id;
         const viewerRole = req.user?.role;
         const likedPostIds = new Set<string>();
+        const savedPostIds = new Set<string>();
 
         if (viewerId) {
             const likes = await prisma.like.findMany({
@@ -228,13 +231,23 @@ export class PostController {
                 select: { postId: true }
             });
             likes.forEach(l => likedPostIds.add(l.postId));
+
+            const savedPosts = await prisma.savedPost.findMany({
+                where: {
+                    userId: viewerId,
+                    postId: { in: rawPosts.map(p => p.id) }
+                },
+                select: { postId: true }
+            });
+            savedPosts.forEach((sp: any) => savedPostIds.add(sp.postId));
         }
 
         const posts = rawPosts.map(post => PostController.formatPostResponse(
             post,
             viewerId,
             viewerRole,
-            likedPostIds
+            likedPostIds,
+            savedPostIds
         ));
 
         res.status(200).json({
@@ -366,7 +379,8 @@ export class PostController {
             updatedPost,
             user.id,
             user.role,
-            like ? new Set([like.postId]) : undefined
+            like ? new Set([like.postId]) : undefined,
+            undefined
         );
 
         res.status(200).json({
@@ -426,6 +440,147 @@ export class PostController {
             success: true,
             message: 'Post restored successfully',
             data: { post: updatedPost },
+        });
+    });
+
+    static getUserPosts = asyncHandler(async (req: Request, res: Response) => {
+        const { userId } = req.params;
+        const viewerId = req.user?.id;
+        const viewerRole = req.user?.role;
+        const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+        const page = Math.max(parseInt(req.query.page as string) || 1, 1);
+        const skip = (page - 1) * limit;
+        const skipCount = req.query.skipCount === 'true';
+
+        logger.info('Fetching user posts', { userId, viewerId, page, limit });
+
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+        });
+
+        if (!user) {
+            logger.warn('User not found for getUserPosts', { userId, viewerId });
+            return res.status(200).json({
+                success: true,
+                data: {
+                    posts: [],
+                    pagination: { page, limit, total: 0, totalPages: 0 },
+                },
+            });
+        }
+
+        if (user.isDeleted) {
+            logger.info('Deleted user profile accessed', { userId, viewerId });
+            return res.status(200).json({
+                success: true,
+                data: {
+                    posts: [],
+                    pagination: { page, limit, total: 0, totalPages: 0 },
+                },
+            });
+        }
+
+        if (viewerId && viewerId !== userId) {
+            const isBlocked = await prisma.blockedUser.findFirst({
+                where: {
+                    OR: [
+                        { blockerId: viewerId, blockedId: userId },
+                        { blockerId: userId, blockedId: viewerId },
+                    ],
+                },
+            });
+
+            if (isBlocked) {
+                logger.info('Blocked user profile access blocked', { userId, viewerId });
+                return res.status(200).json({
+                    success: true,
+                    data: {
+                        posts: [],
+                        pagination: { page, limit, total: 0, totalPages: 0 },
+                    },
+                });
+            }
+        }
+
+        const where: any = {
+            authorId: userId,
+            status: PostStatus.PUBLISHED,
+        };
+
+        if (viewerId === userId || viewerRole === Role.ADMIN) {
+            delete where.status;
+        }
+
+        const posts = await prisma.post.findMany({
+            where,
+            take: limit,
+            skip,
+            orderBy: { createdAt: 'desc' },
+            include: {
+                author: {
+                    select: {
+                        id: true,
+                        name: true,
+                        profilePicUrl: true,
+                    },
+                },
+                _count: {
+                    select: {
+                        likes: true,
+                        comments: true,
+                    },
+                },
+            },
+        });
+
+        const likedPostIds = new Set<string>();
+        const savedPostIds = new Set<string>();
+
+        if (viewerId && posts.length > 0) {
+            const likes = await prisma.like.findMany({
+                where: {
+                    userId: viewerId,
+                    postId: { in: posts.map(p => p.id) },
+                },
+                select: { postId: true },
+            });
+            likes.forEach(l => likedPostIds.add(l.postId));
+
+            const savedPosts = await prisma.savedPost.findMany({
+                where: {
+                    userId: viewerId,
+                    postId: { in: posts.map(p => p.id) },
+                },
+                select: { postId: true },
+            });
+            savedPosts.forEach(sp => savedPostIds.add(sp.postId));
+        }
+
+        const formattedPosts = posts.map(post =>
+            PostController.formatPostResponse(
+                post,
+                viewerId,
+                viewerRole,
+                likedPostIds,
+                savedPostIds
+            )
+        );
+
+        const totalCount = skipCount ? undefined : await prisma.post.count({ where });
+
+        logger.info('Fetched user posts', { userId, viewerId, count: posts.length });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                posts: formattedPosts,
+                pagination: skipCount ? { page, limit } : {
+                    page,
+                    limit,
+                    total: totalCount,
+                    totalPages: Math.ceil(totalCount! / limit),
+                },
+            },
         });
     });
 }

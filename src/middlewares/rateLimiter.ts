@@ -27,13 +27,13 @@ export const rateLimiter = (options: RateLimitOptions) => {
                 await redis.expire(key, windowSeconds);
             }
 
-            if (current > max) {
-                throw new AppError(
-                    ErrorCode.RATE_LIMITED,
-                    message || 'Too many requests, please try again later',
-                    429
-                );
-            }
+            // if (current > max) {
+            //     throw new AppError(
+            //         ErrorCode.RATE_LIMITED,
+            //         message || 'Too many requests, please try again later',
+            //         429
+            //     );
+            // }
 
             next();
         } catch (error) {
@@ -63,4 +63,11 @@ export const otpIpRateLimiter = rateLimiter({
 export const apiRateLimiter = rateLimiter({
     windowMs: 60 * 1000,
     max: 100,
+});
+
+export const savePostRateLimiter = rateLimiter({
+    windowMs: 60 * 1000,
+    max: 30,
+    keyGenerator: (req) => `save:user:${req.user!.id}`,
+    message: 'Too many save/unsave requests. Please slow down.',
 });

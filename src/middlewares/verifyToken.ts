@@ -70,3 +70,10 @@ export const verifyTokenOptional = async (req: Request, _res: Response, next: Ne
         next(error);
     }
 };
+
+export const requireCompleteProfile = (req: Request, _res: Response, next: NextFunction) => {
+    if (!req.user?.name) {
+        return next(new AppError(ErrorCode.FORBIDDEN, 'Please complete your registration to access this feature', 403));
+    }
+    next();
+};

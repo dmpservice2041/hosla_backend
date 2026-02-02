@@ -92,6 +92,7 @@ model User {
   comments          Comment[]
   likes             Like[]
   reports           Report[]
+  savedPosts        SavedPost[]
   createdEvents     Event[]
   eventParticipations EventParticipant[]
   messageStatuses   MessageStatus[]
@@ -101,6 +102,7 @@ model User {
   messages          Message[]
   blockedUsers      BlockedUser[] @relation("UserBlocked")
   blockedBy         BlockedUser[] @relation("UserBlocker")
+  commentLikes      CommentLike[]
   settings          UserSettings?
 }
 
@@ -159,6 +161,7 @@ model Post {
   comments       Comment[]
   likes          Like[]
   reports        Report[]
+  savedPosts     SavedPost[]
 
   @@index([isPinned, tagPriority, rolePriority, publishedAt, id])
   @@index([authorId])
@@ -179,12 +182,25 @@ model Comment {
   replies   Comment[] @relation("CommentReplies")
   reports   Report[]
   isDeleted Boolean   @default(false)
+  likes     CommentLike[]
 
   @@index([postId])
   @@index([userId])
 }
 
 model Like {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+}
+
+model SavedPost {
   id        String   @id @default(uuid())
   postId    String
   userId    String
@@ -366,4 +382,16 @@ model BlockedWord {
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
   createdBy String?
+}
+
+model CommentLike {
+  id        String   @id @default(uuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
 }

@@ -106,4 +106,91 @@ export class LikeController {
             liked: false
         });
     });
+
+    static likeComment = asyncHandler(async (req: Request, res: Response) => {
+        const { id: commentId } = req.params;
+        const userId = req.user!.id;
+        const userName = req.user!.name;
+
+        const comment = await prisma.comment.findUnique({
+            where: { id: commentId },
+            select: { userId: true, content: true }
+        });
+
+        if (!comment) {
+            throw new AppError(ErrorCode.NOT_FOUND, 'Comment not found');
+        }
+
+        try {
+            await prisma.commentLike.create({
+                data: {
+                    commentId,
+                    userId
+                }
+            });
+
+            logger.info('Comment liked', { userId, commentId });
+
+            if (comment.userId !== userId) {
+                const authorDevices = await prisma.device.findMany({
+                    where: { userId: comment.userId }
+                });
+
+                if (authorDevices.length > 0) {
+                    const tokens = authorDevices.map(d => d.fcmToken);
+                    const commentPreview = comment.content.substring(0, 50);
+
+                    await notificationService.sendMulticast(
+                        tokens,
+                        'New Like',
+                        `${userName} liked your comment: "${commentPreview}"`,
+                        {
+                            type: 'COMMENT_LIKE',
+                            commentId: commentId,
+                        }
+                    );
+                }
+            }
+        } catch (error: any) {
+            if (error.code === 'P2002') {
+
+            } else {
+                throw error;
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            liked: true
+        });
+    });
+
+    static unlikeComment = asyncHandler(async (req: Request, res: Response) => {
+        const { id: commentId } = req.params;
+        const userId = req.user!.id;
+
+        try {
+            await prisma.commentLike.delete({
+                where: {
+                    commentId_userId: {
+                        commentId,
+                        userId
+                    }
+                }
+            });
+
+            logger.info('Comment unliked', { userId, commentId });
+        } catch (error: any) {
+            if (error.code === 'P2025') {
+
+            } else {
+                throw error;
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            liked: false
+        });
+    });
 }

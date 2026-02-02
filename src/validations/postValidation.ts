@@ -22,3 +22,7 @@ export const updatePostSchema = {
         isPinned: z.boolean().optional(),
     }),
 };
+
+export const userIdParamSchema = z.object({
+    userId: z.string().uuid({ message: 'Invalid user ID format' }),
+});
